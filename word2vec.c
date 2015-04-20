@@ -442,19 +442,22 @@ InitNet ()
 {
   long long a, b;
   unsigned long long next_random = 1;
-  long long *syn0 = _aligned_malloc (128, (long long) vocab_size * layer1_size * sizeof(real));
+  size_t size = (size_t) vocab_size * layer1_size * sizeof(real);
+  printf("size: %I64u\n", size);
+  fflush(stdout);
+  syn0 = _aligned_malloc (size, 128);
   if (syn0 == NULL)
 	{
-	  printf ("Memory allocation failed\n");
-	  exit (1);
+	  printf ("Memory allocation failed with syn0\n");
+	  exit (EXIT_FAILURE);
 	}
   if (hs)
 	{
-	  long long *syn1 = _aligned_malloc (128, (long long) vocab_size * layer1_size * sizeof(real));
+	  syn1 = _aligned_malloc (size, 128);
 	  if (syn1 == NULL)
 		{
-		  printf ("Memory allocation failed\n");
-		  exit (1);
+		  printf ("Memory allocation failed with syn1\n");
+		  exit (EXIT_FAILURE);
 		}
 	  for (a = 0; a < vocab_size; a++)
 		for (b = 0; b < layer1_size; b++)
@@ -462,11 +465,11 @@ InitNet ()
 	}
   if (negative > 0)
 	{
-	  long long *syn1neg = _aligned_malloc (128, (long long) vocab_size * layer1_size * sizeof(real));
+	  syn1neg = _aligned_malloc (size, 128);
 	  if (syn1neg == NULL)
 		{
-		  printf ("Memory allocation failed\n");
-		  exit (1);
+		  printf ("Memory allocation failed with syn1neg\n");
+		  exit (EXIT_FAILURE);
 		}
 	  for (a = 0; a < vocab_size; a++)
 		for (b = 0; b < layer1_size; b++)

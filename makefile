@@ -1,6 +1,6 @@
 CC = gcc
 #Using -Ofast instead of -O3 might result in faster code, but is supported only by newer GCC versions
-CFLAGS = -lm -pthread -O3 -march=native -funroll-loops -Wno-unused-result -Wformat-extra-args -Wreturn-type
+CFLAGS = -lm -pthread -O3 -march=native -funroll-loops -Wno-unused-result -Wreturn-type
 LDFLAGS = -lpthread -lwinpthread
 
 all: word2vec word2phrase distance word-analogy compute-accuracy
