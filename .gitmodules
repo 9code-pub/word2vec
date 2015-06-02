@@ -1,0 +1,18 @@
+[submodule "java"]
+	path = java
+	url = git@github.com:medallia/Word2VecJava.git
+[submodule "java-parallel"]
+	path = java-parallel
+	url = git@github.com:siegfang/word2vec.git
+[submodule "scala"]
+	path = scala
+	url = git@github.com:trananh/word2vec-scala.git
+[submodule "cpp11"]
+	path = cpp11
+	url = git@github.com:jdeng/word2vec.git
+[submodule "java2"]
+	path = java2
+	url = git@github.com:NLPchina/Word2VEC_java.git
+[submodule "cuda"]
+	path = cuda
+	url = git@github.com:whatupbiatch/cuda-word2vec.git
