@@ -16,3 +16,6 @@
 [submodule "cuda"]
 	path = cuda
 	url = git@github.com:whatupbiatch/cuda-word2vec.git
+[submodule "python"]
+	path = python
+	url = git@github.com:danielfrg/word2vec.git
