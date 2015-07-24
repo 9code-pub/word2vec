@@ -12,6 +12,11 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+/* *
+ * http://blog.csdn.net/itplus/article/details/37999613
+ * http://blog.csdn.net/lingerlanlan/article/details/38232755
+ * */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -356,22 +361,22 @@ create_binary_tree ()
 }
 
 void
-LearnVocabFromTrainFile ()
+learn_vocabulary_from_train_file ()
 {
   char word[MAX_STRING];
   FILE *fin;
-  int64_t a, i;
-  for (a = 0; a < vocabulary_hash_size; a++)
-	vocabulary_hash[a] = -1;
+  int64_t i, index;
+  for (i = 0; i < vocabulary_hash_size; i++)
+	vocabulary_hash[i] = -1;
   fin = fopen (train_file, "rb");
   if (fin == NULL)
 	{
 	  printf ("ERROR: training data file not found!\n");
-	  exit (1);
+	  exit (EXIT_FAILURE);
 	}
   vocabulary_size = 0;
-  add_word_to_vocabulary ((char *) "</s>");
-  while (1)
+  add_word_to_vocabulary ((char *) "</s>"); // 第一个词是</s>
+  while (true)
 	{
 	  read_word (word, fin);
 	  if (feof (fin))
@@ -382,21 +387,21 @@ LearnVocabFromTrainFile ()
 		  printf ("%lldK%c", train_words / 1000, 13);
 		  fflush (stdout);
 		}
-	  i = search_vocabulary (word);
-	  if (i == -1)
+	  index = search_vocabulary (word);
+	  if (index == -1) // word不在词汇表中
 		{
-		  a = add_word_to_vocabulary (word);
-		  vocab[a].frequency = 1;
+		  i = add_word_to_vocabulary (word); // 将word添加到词汇表
+		  vocab[i].frequency = 1; // 词频加1
 		}
 	  else
-		vocab[i].frequency++;
-	  if (vocabulary_size > vocabulary_hash_size * 0.7)
+		vocab[index].frequency++; // 词频自增
+	  if (vocabulary_size > vocabulary_hash_size * 0.7) // hash表占比超过70%时，减少词汇
 		reduce_vocabulary ();
 	}
-  sort_vocabulary ();
+  sort_vocabulary (); // 排序词汇表
   if (debug_mode > 0)
 	{
-	  printf ("Vocab size: %lld\n", vocabulary_size);
+	  printf ("Vocabulary size: %lld\n", vocabulary_size);
 	  printf ("Words in train file: %lld\n", train_words);
 	}
   file_size = ftell (fin);
@@ -404,38 +409,37 @@ LearnVocabFromTrainFile ()
 }
 
 void
-SaveVocab ()
+save_vocabulary ()
 {
   int64_t i;
-  FILE *fo = fopen (save_vocab_file, "wb");
+  FILE *fo = fopen (save_vocab_file, "wb"); // 二进制文件
   for (i = 0; i < vocabulary_size; i++)
 	fprintf (fo, "%s %lld\n", vocab[i].word, vocab[i].frequency);
   fclose (fo);
 }
 
 void
-ReadVocab ()
+read_vocabulary ()
 {
-  int64_t a, i = 0;
+  int64_t i = 0;
   char c;
-  char word[MAX_STRING];
+  char word[MAX_STRING]; // word数组，用来保存读取到的词
   FILE *fin = fopen (read_vocab_file, "rb");
   if (fin == NULL)
 	{
 	  printf ("Vocabulary file not found\n");
-	  exit (1);
+	  exit (EXIT_FAILURE);
 	}
-  for (a = 0; a < vocabulary_hash_size; a++)
-	vocabulary_hash[a] = -1;
+  for (i = 0; i < vocabulary_hash_size; i++)
+	vocabulary_hash[i] = -1;
   vocabulary_size = 0;
-  while (1)
+  while (true)
 	{
 	  read_word (word, fin);
 	  if (feof (fin))
 		break;
-	  a = add_word_to_vocabulary (word);
-	  fscanf (fin, "%lld%c", &vocab[a].frequency, &c);
-	  i++;
+	  i = add_word_to_vocabulary (word);
+	  fscanf (fin, "%lld%c", &vocab[i].frequency, &c);
 	}
   sort_vocabulary ();
   if (debug_mode > 0)
@@ -447,7 +451,7 @@ ReadVocab ()
   if (fin == NULL)
 	{
 	  printf ("ERROR: training data file not found!\n");
-	  exit (1);
+	  exit (EXIT_FAILURE);
 	}
   fseek (fin, 0, SEEK_END);
   file_size = ftell (fin);
@@ -455,7 +459,7 @@ ReadVocab ()
 }
 
 void
-InitNet ()
+initialize_net ()
 {
   int64_t a, b;
   uint64_t next_random = 1;
@@ -496,13 +500,13 @@ InitNet ()
 	for (b = 0; b < layer1_size; b++)
 	  {
 		next_random = next_random * (uint64_t) 25214903917 + 11;
-		syn0[a * layer1_size + b] = (((next_random & 0xFFFF) / (real) 65536) - 0.5) / layer1_size;
+		syn0[a * layer1_size + b] = (((next_random & 0xFFFF) / (real) 65536) - 0.5) / layer1_size; // syn0填充随机数
 	  }
   create_binary_tree();
 }
 
 void *
-TrainModelThread (void *id)
+train_model_thread (void *id)
 {
   int64_t a, b, d, cw, word, last_word, sentence_length = 0, sentence_position = 0;
   int64_t word_count = 0, last_word_count = 0, sen[MAX_SENTENCE_LENGTH + 1];
@@ -514,9 +518,9 @@ TrainModelThread (void *id)
   real *neu1e = (real *) calloc (layer1_size, sizeof(real));
   FILE *fi = fopen (train_file, "rb");
   fseek (fi, file_size / (int64_t) num_threads * (int64_t) id, SEEK_SET);
-  while (1)
+  while (true)
 	{
-	  if (word_count - last_word_count > 10000)
+	  if (word_count - last_word_count > 10000) // 每次处理10000词，此处可分布
 		{
 		  word_count_actual += word_count - last_word_count;
 		  last_word_count = word_count;
@@ -528,13 +532,13 @@ TrainModelThread (void *id)
 					  word_count_actual / ((real) (now - start + 1) / (real) CLOCKS_PER_SEC * 1000));
 			  fflush (stdout);
 			}
-		  alpha = starting_alpha * (1 - word_count_actual / (real) (iter * train_words + 1));
+		  alpha = starting_alpha * (1 - word_count_actual / (real) (iter * train_words + 1)); // 改变梯度步长，自适应学习率
 		  if (alpha < starting_alpha * 0.0001)
 			alpha = starting_alpha * 0.0001;
 		}
 	  if (sentence_length == 0)
 		{
-		  while (1)
+		  while (true)
 			{
 			  word = read_word_index (fi);
 			  if (feof (fi))
@@ -551,7 +555,7 @@ TrainModelThread (void *id)
 					  / vocab[word].frequency;
 				  next_random = next_random * (uint64_t) 25214903917 + 11;
 				  if (ran < (next_random & 0xFFFF) / (real) 65536)
-					continue;
+					continue; // 按一定概率舍去高频词
 				}
 			  sen[sentence_length] = word;
 			  sentence_length++;
@@ -560,7 +564,7 @@ TrainModelThread (void *id)
 			}
 		  sentence_position = 0;
 		}
-	  if (feof (fi) || (word_count > train_words / num_threads))
+	  if (feof (fi) || (word_count > train_words / num_threads)) // 还有词没训练完成
 		{
 		  word_count_actual += word_count - last_word_count;
 		  local_iter--;
@@ -569,8 +573,7 @@ TrainModelThread (void *id)
 		  word_count = 0;
 		  last_word_count = 0;
 		  sentence_length = 0;
-		  fseek (fi, file_size / (int64_t) num_threads * (int64_t) id,
-		  SEEK_SET);
+		  fseek (fi, file_size / (int64_t) num_threads * (int64_t) id, SEEK_SET);
 		  continue;
 		}
 	  word = sen[sentence_position];
@@ -780,19 +783,19 @@ TrainModel ()
   printf ("Starting training using file %s\n", train_file);
   starting_alpha = alpha;
   if (read_vocab_file[0] != 0)
-	ReadVocab ();
+	read_vocabulary ();
   else
-	LearnVocabFromTrainFile ();
+	learn_vocabulary_from_train_file ();
   if (save_vocab_file[0] != 0)
-	SaveVocab ();
+	save_vocabulary ();
   if (output_file[0] == 0)
 	return;
-  InitNet ();
+  initialize_net ();
   if (negative > 0)
 	init_unigram_table ();
   start = clock ();
   for (a = 0; a < num_threads; a++)
-	pthread_create (&pt[a], NULL, TrainModelThread, (void *) a);
+	pthread_create (&pt[a], NULL, train_model_thread, (void *) a);
   for (a = 0; a < num_threads; a++)
 	pthread_join (pt[a], NULL);
   fo = fopen (output_file, "wb");
