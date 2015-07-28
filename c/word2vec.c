@@ -277,7 +277,7 @@ reduce_vocabulary ()
 void
 create_binary_tree ()
 {
-  int64_t i, j, i, min1i, min2i, pos1, pos2, point[MAX_CODE_LENGTH];
+  int64_t i, j, k, min1i, min2i, pos1, pos2, point[MAX_CODE_LENGTH];
   char code[MAX_CODE_LENGTH];
   int64_t *count = (int64_t *) calloc (vocabulary_size * 2 + 1, sizeof(int64_t)); // calloc时置零
   int64_t *binary = (int64_t *) calloc (vocabulary_size * 2 + 1, sizeof(int64_t));
@@ -337,22 +337,22 @@ create_binary_tree ()
   for (i = 0; i < vocabulary_size; i++)
 	{
 	  j = i;
-	  i = 0;
-	  while (1)
+	  k = 0;
+	  while (true)
 		{
-		  code[i] = binary[j]; // 0或者1
-		  point[i] = j; // 路径
-		  i++;
+		  code[k] = binary[j]; // 0或者1
+		  point[k] = j; // 路径
+		  k++;
 		  j = parent_node[j];
 		  if (j == vocabulary_size * 2 - 2)
 			break;
 		}
-	  vocab[i].codelen = i; // 树高
+	  vocab[i].codelen = k; // 树高
 	  vocab[i].point[0] = vocabulary_size - 2;
-	  for (j = 0; j < i; j++)
+	  for (j = 0; j < k; j++)
 		{
-		  vocab[i].code[i - j - 1] = code[j];
-		  vocab[i].point[i - j] = point[j] - vocabulary_size;
+		  vocab[i].code[k - j - 1] = code[j];
+		  vocab[i].point[k - j] = point[j] - vocabulary_size;
 		}
 	}
   free (count);
@@ -509,7 +509,7 @@ void *
 train_model_thread (void *id)
 {
   int64_t a, b, d, cw, word, last_word, sentence_length = 0, sentence_position = 0;
-  int64_t word_count = 0, last_word_count = 0, sen[MAX_SENTENCE_LENGTH + 1];
+  int64_t word_count = 0, last_word_count = 0, sentence[MAX_SENTENCE_LENGTH + 1];
   int64_t l1, l2, c, target, label, local_iter = iter;
   uint64_t next_random = (int64_t) id;
   real f, g;
@@ -546,7 +546,7 @@ train_model_thread (void *id)
 			  if (word == -1)
 				continue;
 			  word_count++;
-			  if (word == 0)
+			  if (word == 0) // 换行 <s>时跳出
 				break;
 			  // The subsampling randomly discards frequent words while keeping the ranking same
 			  if (sample > 0)
@@ -557,7 +557,7 @@ train_model_thread (void *id)
 				  if (ran < (next_random & 0xFFFF) / (real) 65536)
 					continue; // 按一定概率舍去高频词
 				}
-			  sen[sentence_length] = word;
+			  sentence[sentence_length] = word; // 组成句子
 			  sentence_length++;
 			  if (sentence_length >= MAX_SENTENCE_LENGTH)
 				break;
@@ -576,7 +576,7 @@ train_model_thread (void *id)
 		  fseek (fi, file_size / (int64_t) num_threads * (int64_t) id, SEEK_SET);
 		  continue;
 		}
-	  word = sen[sentence_position];
+	  word = sentence[sentence_position];
 	  if (word == -1)
 		continue;
 	  for (c = 0; c < layer1_size; c++)
@@ -597,7 +597,7 @@ train_model_thread (void *id)
 				  continue;
 				if (c >= sentence_length)
 				  continue;
-				last_word = sen[c];
+				last_word = sentence[c];
 				if (last_word == -1)
 				  continue;
 				for (c = 0; c < layer1_size; c++)
@@ -674,7 +674,7 @@ train_model_thread (void *id)
 					  continue;
 					if (c >= sentence_length)
 					  continue;
-					last_word = sen[c];
+					last_word = sentence[c];
 					if (last_word == -1)
 					  continue;
 					for (c = 0; c < layer1_size; c++)
@@ -692,7 +692,7 @@ train_model_thread (void *id)
 				  continue;
 				if (c >= sentence_length)
 				  continue;
-				last_word = sen[c];
+				last_word = sentence[c];
 				if (last_word == -1)
 				  continue;
 				l1 = last_word * layer1_size;
