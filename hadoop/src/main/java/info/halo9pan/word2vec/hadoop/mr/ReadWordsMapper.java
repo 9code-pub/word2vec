@@ -45,8 +45,7 @@ public class ReadWordsMapper extends Mapper<Object, Text, Text, IntWritable> imp
 	private static Logger logger = LoggerFactory.getLogger(ReadWordsMapper.class);
 
 	static enum WordsCounter {
-		InputWords,
-		SkipWords
+		InputWords, SkipWords
 	}
 
 	private final static IntWritable ONE = new IntWritable(1);
@@ -69,7 +68,7 @@ public class ReadWordsMapper extends Mapper<Object, Text, Text, IntWritable> imp
 	public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
 		String line = value.toString();
 		for (String pattern : skipPatterns) {
-			if(line.contains(pattern)){
+			if (line.contains(pattern)) {
 				Counter counter = context.getCounter(WordsCounter.SkipWords.toString(), pattern);
 				counter.increment(1);
 			}

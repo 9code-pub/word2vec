@@ -35,10 +35,10 @@ import org.slf4j.LoggerFactory;
 public interface ValueIgnorable<T> {
 
 	Logger logger = LoggerFactory.getLogger(ValueIgnorable.class);
-	
+
 	Set<T> getIgnoreSet();
-	
-	default void printIgnoreWords(){
+
+	default void printIgnoreWords() {
 		Set<T> set = getIgnoreSet();
 		logger.info(set.toString());
 	}

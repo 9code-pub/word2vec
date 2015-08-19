@@ -35,7 +35,8 @@ import org.apache.hadoop.mapreduce.Reducer;
  */
 public class ReadWordsCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
 
-	public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+	public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException,
+			InterruptedException {
 		IntWritable result = new IntWritable();
 		int sum = 0;
 		for (IntWritable val : values) {
