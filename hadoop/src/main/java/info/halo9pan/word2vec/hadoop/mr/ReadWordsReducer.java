@@ -33,10 +33,10 @@ import org.apache.hadoop.mapreduce.Reducer;
  * @author Halo9Pan
  *
  */
-public class ReadWordsCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
+public class ReadWordsReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
 
-	public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException,
-			InterruptedException {
+	public void reduce(Text key, Iterable<IntWritable> values, Context context)
+			throws IOException, InterruptedException {
 		IntWritable result = new IntWritable();
 		int sum = 0;
 		for (IntWritable val : values) {
@@ -45,4 +45,5 @@ public class ReadWordsCombiner extends Reducer<Text, IntWritable, Text, IntWrita
 		result.set(sum);
 		context.write(key, result);
 	}
+
 }

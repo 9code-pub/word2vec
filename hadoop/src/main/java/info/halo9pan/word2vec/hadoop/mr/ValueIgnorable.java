@@ -36,10 +36,10 @@ public interface ValueIgnorable<T> {
 
 	Logger logger = LoggerFactory.getLogger(ValueIgnorable.class);
 
-	Set<T> getIgnoreSet();
+	Set<T> ignoreSet();
 
 	default void printIgnoreWords() {
-		Set<T> set = getIgnoreSet();
+		Set<T> set = ignoreSet();
 		logger.info(set.toString());
 	}
 }

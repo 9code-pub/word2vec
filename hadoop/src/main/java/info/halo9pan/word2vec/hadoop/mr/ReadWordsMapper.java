@@ -60,7 +60,7 @@ public class ReadWordsMapper extends Mapper<Object, Text, Text, IntWritable> imp
 	}
 
 	@Override
-	public Set<String> getIgnoreSet() {
+	public Set<String> ignoreSet() {
 		return this.skipPatterns;
 	}
 

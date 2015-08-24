@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -38,6 +36,8 @@ import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generates the sampled split points, launches the job, and waits for it to
@@ -46,7 +46,7 @@ import org.apache.hadoop.util.ToolRunner;
  * To run the program: <b>bin/hadoop jar hadoop-*-examples.jar terasort in-dir out-dir</b>
  */
 public class WordSort extends Configured implements Tool {
-	private static final Log LOG = LogFactory.getLog(WordSort.class);
+	private static final Logger logger = LoggerFactory.getLogger(WordSort.class);
 	static String SIMPLE_PARTITIONER = "mapreduce.terasort.simplepartitioner";
 	static String OUTPUT_REPLICATION = "mapreduce.terasort.output.replication";
 
@@ -291,7 +291,7 @@ public class WordSort extends Configured implements Tool {
 	}
 
 	public int run(String[] args) throws Exception {
-		LOG.info("starting");
+		logger.info("starting");
 		Job job = Job.getInstance(getConf());
 		Path inputDir = new Path(args[0]);
 		Path outputDir = new Path(args[1]);
@@ -313,7 +313,7 @@ public class WordSort extends Configured implements Tool {
 			try {
 				SortInputFormat.writePartitionFile(job, partitionFile);
 			} catch (Throwable e) {
-				LOG.error(e.getMessage());
+				logger.error(e.getMessage());
 				return -1;
 			}
 			job.addCacheFile(partitionUri);
@@ -325,7 +325,7 @@ public class WordSort extends Configured implements Tool {
 		job.getConfiguration().setInt("dfs.replication", getOutputReplication(job));
 		SortOutputFormat.setFinalSync(job, true);
 		int ret = job.waitForCompletion(true) ? 0 : 1;
-		LOG.info("done");
+		logger.info("done");
 		return ret;
 	}
 
