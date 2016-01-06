@@ -56,7 +56,7 @@ int *vocabulary_hash;
 int64_t vocabulary_max_size = 1000, vocabulary_size = 0, layer1_size = 100; // vocabulary_size：词典大小，layer1_size：向量长度，隐含层的大小
 int64_t train_words = 0, word_count_actual = 0, iter = 5, file_size = 0, classes = 0;
 real alpha = 0.025, starting_alpha, sample = 1e-3;
-real *syn0, *syn1, *syn1neg, *expTable;
+real *syn0, *syn1, *syn1neg, *exp_table;
 // syn0：input -> hidden 的 weights，是一个1维数组，但是可以按照二维数组来理解。访问时实际上可以看成  syn0[i, j]，i为第i个单词，j为第j个隐含单元。大小：词典大小 * 隐含层大小
 // syn1：hidden->output 的 weights
 clock_t start;
@@ -460,6 +460,13 @@ read_vocabulary ()
   fclose (fin);
 }
 
+uint64_t
+generate_random(uint64_t seed)
+{
+  uint64_t next_random = seed * (uint64_t) 25214903917 + 11;
+  return next_random;
+}
+
 void
 initialize_net ()
 {
@@ -501,7 +508,7 @@ initialize_net ()
   for (a = 0; a < vocabulary_size; a++)
     for (b = 0; b < layer1_size; b++)
       {
-        next_random = next_random * (uint64_t) 25214903917 + 11;
+        next_random = generate_random(next_random);
         syn0[a * layer1_size + b] = (((next_random & 0xFFFF) / (real) 65536) - 0.5) / layer1_size; // syn0填充随机数
       }
   create_binary_tree();
@@ -519,7 +526,7 @@ train_model_thread (void *id)
   real *neu1 = (real *) calloc (layer1_size, sizeof(real)); // 隐含层神经的值， 大小： 隐含层大小
   real *neu1e = (real *) calloc (layer1_size, sizeof(real)); // 隐含层误差量， 大小： 隐含层大小
   FILE *fi = fopen (train_file, "rb");
-  fseek (fi, file_size / (int64_t) num_threads * (int64_t) id, SEEK_SET);
+  fseek (fi, file_size / (int64_t) num_threads * (int64_t) id, SEEK_SET); // 文件按线程大小分块
   while (true)
     {
       if (word_count - last_word_count > 10000) // 每次处理10000词，此处可分布
@@ -555,7 +562,7 @@ train_model_thread (void *id)
                 {
                   real ran = (sqrt (vocab[word_index].frequency / (sample * train_words)) + 1) * (sample * train_words)
                       / vocab[word_index].frequency;
-                  next_random = next_random * (uint64_t) 25214903917 + 11;
+                  next_random = generate_random(next_random);
                   if (ran < (next_random & 0xFFFF) / (real) 65536)
                     continue; // 按一定概率舍去高频词
                 }
@@ -566,7 +573,7 @@ train_model_thread (void *id)
             }
           sentence_position = 0;
         }
-      if (feof (fi) || (word_count > train_words / num_threads)) //
+      if (feof (fi) || (word_count > train_words / num_threads)) // 继续将文件分块
         {
           word_count_actual += word_count - last_word_count;
           local_iter--;
@@ -585,7 +592,7 @@ train_model_thread (void *id)
         neu1[c] = 0;
       for (c = 0; c < layer1_size; c++)
         neu1e[c] = 0;
-      next_random = next_random * (uint64_t) 25214903917 + 11;
+      next_random = generate_random(next_random);
       b = next_random % window;
       if (cbow)
         {  //train the cbow architecture
@@ -623,7 +630,8 @@ train_model_thread (void *id)
                     else if (f >= MAX_EXP)
                       continue;
                     else
-                      f = expTable[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];
+                      // f = exp_table[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];
+					  f = exp_table[(int) (((f + MAX_EXP) / (MAX_EXP * 2)) * EXP_TABLE_SIZE)];
                     // 'g' is the gradient multiplied by the learning rate
                     g = (1 - vocab[word_index].code[d] - f) * alpha;
                     // Propagate errors output -> hidden
@@ -644,7 +652,7 @@ train_model_thread (void *id)
                       }
                     else
                       {
-                        next_random = next_random * (uint64_t) 25214903917 + 11;
+                        next_random = generate_random(next_random);
                         target = table[(next_random >> 16) % table_size];
                         if (target == 0)
                           target = next_random % (vocabulary_size - 1) + 1;
@@ -661,7 +669,7 @@ train_model_thread (void *id)
                     else if (f < -MAX_EXP)
                       g = (label - 0) * alpha;
                     else
-                      g = (label - expTable[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;
+                      g = (label - exp_table[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;
                     for (c = 0; c < layer1_size; c++)
                       neu1e[c] += g * syn1neg[c + l2];
                     for (c = 0; c < layer1_size; c++)
@@ -714,7 +722,7 @@ train_model_thread (void *id)
                       else if (f >= MAX_EXP)
                         continue;
                       else
-                        f = expTable[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];
+                        f = exp_table[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))];
                       // 'g' is the gradient multiplied by the learning rate
                       g = (1 - vocab[word_index].code[d] - f) * alpha;
                       // Propagate errors output -> hidden
@@ -735,7 +743,7 @@ train_model_thread (void *id)
                         }
                       else
                         {
-                          next_random = next_random * (uint64_t) 25214903917 + 11;
+                          next_random = generate_random(next_random);
                           target = table[(next_random >> 16) % table_size];
                           if (target == 0)
                             target = next_random % (vocabulary_size - 1) + 1;
@@ -752,7 +760,7 @@ train_model_thread (void *id)
                       else if (f < -MAX_EXP)
                         g = (label - 0) * alpha;
                       else
-                        g = (label - expTable[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;
+                        g = (label - exp_table[(int) ((f + MAX_EXP) * (EXP_TABLE_SIZE / MAX_EXP / 2))]) * alpha;
                       for (c = 0; c < layer1_size; c++)
                         neu1e[c] += g * syn1neg[c + l2];
                       for (c = 0; c < layer1_size; c++)
@@ -777,7 +785,7 @@ train_model_thread (void *id)
 }
 
 void
-TrainModel ()
+train_model ()
 {
   long a, b, c, d;
   FILE *fo;
@@ -880,7 +888,7 @@ TrainModel ()
 }
 
 int
-ArgPos (char *str, int argc, char **argv)
+argument_position (char *str, int argc, char **argv)
 {
   int a;
   for (a = 1; a < argc; a++)
@@ -908,7 +916,7 @@ main (int argc, char **argv)
       printf ("\t-train <file>\n");
       printf ("\t\tUse text data from <file> to train the model\n");
       printf ("\t-output <file>\n");
-      printf ("\t\tUse <file> to save the resulting word vectors / word clusters\n");
+      printf ("\t\tUse <file> to sav e the resulting word vectors / word clusters\n");
       printf ("\t-size <int>\n");
       printf ("\t\tSet size of word vectors; default is 100\n");
       printf ("\t-window <int>\n");
@@ -950,50 +958,54 @@ main (int argc, char **argv)
   output_file[0] = 0;
   save_vocab_file[0] = 0;
   read_vocab_file[0] = 0;
-  if ((i = ArgPos ((char *) "-size", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-size", argc, argv)) > 0)
     layer1_size = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-train", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-train", argc, argv)) > 0)
     strcpy (train_file, argv[i + 1]);
-  if ((i = ArgPos ((char *) "-save-vocab", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-save-vocab", argc, argv)) > 0)
     strcpy (save_vocab_file, argv[i + 1]);
-  if ((i = ArgPos ((char *) "-read-vocab", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-read-vocab", argc, argv)) > 0)
     strcpy (read_vocab_file, argv[i + 1]);
-  if ((i = ArgPos ((char *) "-debug", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-debug", argc, argv)) > 0)
     debug_mode = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-binary", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-binary", argc, argv)) > 0)
     binary = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-cbow", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-cbow", argc, argv)) > 0)
     cbow = atoi (argv[i + 1]);
   if (cbow)
     alpha = 0.05;
-  if ((i = ArgPos ((char *) "-alpha", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-alpha", argc, argv)) > 0)
     alpha = atof (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-output", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-output", argc, argv)) > 0)
     strcpy (output_file, argv[i + 1]);
-  if ((i = ArgPos ((char *) "-window", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-window", argc, argv)) > 0)
     window = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-sample", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-sample", argc, argv)) > 0)
     sample = atof (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-hs", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-hs", argc, argv)) > 0)
     hs = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-negative", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-negative", argc, argv)) > 0)
     negative = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-threads", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-threads", argc, argv)) > 0)
     num_threads = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-iter", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-iter", argc, argv)) > 0)
     iter = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-min-count", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-min-count", argc, argv)) > 0)
     min_count = atoi (argv[i + 1]);
-  if ((i = ArgPos ((char *) "-classes", argc, argv)) > 0)
+  if ((i = argument_position ((char *) "-classes", argc, argv)) > 0)
     classes = atoi (argv[i + 1]);
+
   vocab = (struct vocab_word *) calloc (vocabulary_max_size, sizeof(struct vocab_word));
   vocabulary_hash = (int *) calloc (vocabulary_hash_size, sizeof(int));
-  expTable = (real *) malloc ((EXP_TABLE_SIZE + 1) * sizeof(real));
-  for (i = 0; i < EXP_TABLE_SIZE; i++)
+
+  exp_table = (real *) malloc ((EXP_TABLE_SIZE + 1) * sizeof(real));
+  int x;
+  for (x = 0; x < EXP_TABLE_SIZE; x++)
     {
-      expTable[i] = exp ((i / (real) EXP_TABLE_SIZE * 2 - 1) * MAX_EXP); // Precompute the exp() table
-      expTable[i] = expTable[i] / (expTable[i] + 1); // Precompute f(x) = x / (x + 1)
+	  real z = ((2 * x / (real) EXP_TABLE_SIZE) - 1) * MAX_EXP;
+      exp_table[x] = exp (z); // Precompute the exp() table
+      exp_table[x] = exp_table[x] / (exp_table[x] + 1); // Precompute f(x) = 1 / (1 + e^-x) = e^x / (e^x + 1) = ex / (ex + 1)
     }
-  TrainModel ();
+  train_model();
   return 0;
 }
