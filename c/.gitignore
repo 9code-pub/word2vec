@@ -1,7 +1,10 @@
 /debug/
 /release/
 /build/
-/*.exe
 /.project
 /.cproject
 /.settings
+
+*.exe
+*.txt
+*.bin
