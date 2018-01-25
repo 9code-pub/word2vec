@@ -19,3 +19,6 @@
 [submodule "python"]
 	path = python
 	url = git@github.com:danielfrg/word2vec.git
+[submodule "cuda2"]
+	path = cuda2
+	url = git@github.com:ChenglongChen/word2vec_cbow.git
